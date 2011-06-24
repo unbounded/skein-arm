@@ -4,6 +4,8 @@
 
   Implemented according to ``The Skein Hash Function Family'' version 1.3
 
+  Changes:
+    2011-06-24: Released. Skein-256, Skein-512 and Skein-1024 all work.
 
   Author: Håkon Haugdal Hitland <haakhi@gmail.com>
   Year: 2011
@@ -21,16 +23,11 @@
 	.fpu neon
 	.syntax unified
 	.altmacro
+	.text
 
 #ifndef SKEIN_USE_ASM
 #define SKEIN_USE_ASM (256+512+1024)
 #endif
-
-SKEIN_MODIFIER_WORDS = 2
-
-SKEIN_256_STATE_WORDS = 4
-SKEIN_512_STATE_WORDS = 8
-SKEIN_1024_STATE_WORDS = 16
 
 SKEIN_KS_C240_LOW = 0xA9FC1A22
 SKEIN_KS_C240_HIGH = 0x1BD11BDA
@@ -174,7 +171,6 @@ RC_1024_7_4 = 23
 RC_1024_7_5 = 31
 RC_1024_7_6 = 37
 RC_1024_7_7 = 20
-
 
 
 CTX_TWEAK_OFS = 8
@@ -375,6 +371,19 @@ Skein_256_Process_Block:
 
 	bx lr
 
+#ifdef SKEIN_CODE_SIZE
+/* size_t  Skein_256_Process_Block_CodeSize(void);
+*/
+	.global Skein_256_Process_Block_CodeSize
+Skein_256_Process_Block_CodeSize:
+	ldr r0, =$(Skein_256_Process_Block_CodeSize - Skein_256_Process_Block)
+	bx lr
+
+	.global Skein_256_Unroll_Cnt
+Skein_256_Unroll_Cnt:
+	mov r0, 0
+	bx lr
+#endif
 #endif /* 256 */
 
 
@@ -505,7 +514,6 @@ Skein_256_Process_Block:
  * Unused: d18-d19
  */
 
-/* TODO: test  stack-fix again */
 	.balign 4
 	.global Skein_512_Process_Block
 Skein_512_Process_Block:
@@ -585,7 +593,6 @@ Skein_512_Process_Block:
 	subs r2, 1 /* blkCnt-- */
 	bne 0b
 
-
 	/* Unswap key and save */
 	vswp d3, d6
 	vmov d1, d12 /* t1 -> d1 */
@@ -596,6 +603,19 @@ Skein_512_Process_Block:
 	mov sp, r12
 	bx lr
 
+#ifdef SKEIN_CODE_SIZE
+/* size_t  Skein_512_Process_Block_CodeSize(void);
+*/
+	.global Skein_512_Process_Block_CodeSize
+Skein_512_Process_Block_CodeSize:
+	ldr r0, =$(Skein_512_Process_Block_CodeSize - Skein_512_Process_Block)
+	bx lr
+
+	.global Skein_512_Unroll_Cnt
+Skein_512_Unroll_Cnt:
+	mov r0, 0
+	bx lr
+#endif
 #endif /* 512 */
 
 
@@ -610,26 +630,26 @@ Skein_512_Process_Block:
  c4: v8 -> v14 -> v12 -> v10 ->
 
  c1, c2 and c3 are split across rounds.
- The starting order including swizzling should thus be:
+ The order at entry including swizzling should thus be:
  v0 v2 v15 v11 v6 v4 v13 v9 v8 v10 v7 v3 v12 v14 v5 v1
  or starting out / after a key injection:
  v0 v2 v1 v11 v6 v4 v5 v9 v8 v10 v7 v3 v12 v14 v13 v15
 */
 
 .macro S1024_Round round, interl1, interl2, interl3
-	vsli.64 d12, d23, RC_1024_\round\()_4
-	vswp d23, d26 /* Swap v7 <-> v9  /c3 */
-	vsli.64 d13, d19, RC_1024_\round\()_5
-	vswp d19, d27 /* Swap v3 <-> v11  /c2 */
 	.if (\round && 3) == 0
 	vsli.64 d14, d30, RC_1024_\round\()_6
 	vsli.64 d15, d31, RC_1024_\round\()_7
 	.else
-	vsli.64 d14, d22, RC_1024_\round\()_6
-	vswp d22, d30 /* Swap v5 <-> v13  /c2 */
 	vsli.64 d15, d18, RC_1024_\round\()_7
 	vswp d18, d31 /* Swap v1 <-> v15  /c3 */
+	vsli.64 d14, d22, RC_1024_\round\()_6
+	vswp d22, d30 /* Swap v5 <-> v13  /c2 */
 	.endif
+	vsli.64 d12, d23, RC_1024_\round\()_4
+	vswp d23, d26 /* Swap v7 <-> v9  /c3 */
+	vsli.64 d13, d19, RC_1024_\round\()_5
+	vswp d19, d27 /* Swap v3 <-> v11  /c2 */
 
 	vadd.u64 q12, q13
 	\interl1
@@ -660,7 +680,6 @@ Skein_512_Process_Block:
 	\interl3
 	veor q9, q8, q6
 	veor q11, q10, q7
-	/**/ /**/
 .endm
 
 /*
@@ -698,16 +717,13 @@ Skein_512_Process_Block:
 	moveq r5, S1024_SOFS_TWEAKSCHED
 
 	vadd.u64 q11, q3 /* Contains v5 */
-	#add r7, sp, S1024_SOFS_S
-	#vld1.64 d15, [r7, :64] /* t1 -> d14 */
-	vmov d15, r3, r11
+	vmov d15, r3, r6 /* s -> d15 */
 
 	vadd.u64 q12, q4
 	vadd.u64 q13, q5
 
-	#vadd.u64 q15, q6 /* v13 += t0, v15 += s */
-	vadd.u64 d30, d13
-	vadd.u64 d31, d15
+	vadd.u64 d30, d13 /* v13 += t0 */
+	vadd.u64 d31, d15 /* v15 += s */
 	vadd.u64 d29, d14 /* v14 += t1 */
 .endm
 
@@ -725,7 +741,6 @@ Skein_512_Process_Block:
 
 S1024_SOFS_KEYSCHED = 0
 S1024_SOFS_TWEAKSCHED = 20
-#S1024_SOFS_S = 24
 S1024_SOFS_BYTECNTADD = S1024_SOFS_TWEAKSCHED + 4
 S1024_STACK_N = S1024_SOFS_BYTECNTADD
 
@@ -738,6 +753,28 @@ S1024_STACK_N = S1024_SOFS_BYTECNTADD
 
 
 /* void Skein1024_Process_Block(Skein1024_Ctxt_t *ctx, const u08b_t *blkPtr, size_t blkCnt, size_t byteCntAdd); */
+/*
+ * Register usage:
+ * r0: Pointer to tweak and state
+ * r1: Pointer to plaintext
+ * r2: Remaining block counter
+ * r3: Round counter s
+ * r4: Key schedule position
+ * r5: Tweak schedule position
+ * r6: Constant 0
+ * r7: Temporary addresses
+ * r12: Initial sp
+ *
+ * d0-d11: Key k0, k2, k1, k11, k6, k4, k5, k9, k8, k10, k7, k3, k12, k14, k13, k15
+ * d12-d15: Key/Tweak/Temporary shift registers
+ * d16-d31: State v0, v2, v15, v11, v6, v4, v13, v9, v8, v10, v7, v3, v12, v14, v5, v1
+ *
+ * Stack contents:
+ * S1024_SOFS_KEYSCHED (20 * 8): Key schedule k0-k16, k0-k2
+ * S1024_SOFS_TWEAKSCHED (4 * 8): Tweak schedule t0-t2, t0
+ * S1024_SOFS_BYTECNTADD (1 * 8): byteCntAdd
+ * 
+ */
 
 	.balign 4
 	.global Skein1024_Process_Block
@@ -745,17 +782,17 @@ Skein1024_Process_Block:
 	add r0, CTX_TWEAK_OFS
 	vldm r0, {d0-d9} /* t0,t1 -> d0,d1; k0-k7 -> d2-d9 */
 
-	mov r12, sp
-	bic sp, 15 /* Align the stack to 128 bits */ /* FIXME: after push */
-	push {r4-r11}
+	push {r4-r7}
 	vpush {d8-d15}
+	mov r12, sp
+	bic sp, 15 /* Align the stack to 128 bits */
 
-	mov r11, 0
+	mov r6, 0
 
 	sub sp, 8 * (S1024_STACK_N) /* Allocate space for k0-k16,k0-k2, t0-t2,t0, byteCntAdd */
 
 	str r3, [sp, S1024_SOFS_BYTECNTADD * 8]
-	str r11, [sp, (S1024_SOFS_BYTECNTADD * 8 + 4)]
+	str r6, [sp, (S1024_SOFS_BYTECNTADD * 8 + 4)]
 
 	vldm r0, {d16-d17} /* t0,t1 -> d16-d17 */
 	add r7, r0, (2 * 8)
@@ -772,20 +809,6 @@ Skein1024_Process_Block:
 	vld1.64 d29, [r7,:64] /* byteCntAdd -> d29 */
 
 	add r7, sp, (S1024_SOFS_KEYSCHED * 8)
-/*
-	vst1.64 {d0-d1}, [r7, :128]!
-	vst1.64 {d2-d3}, [r7, :128]!
-	vst1.64 {d4-d5}, [r7, :128]!
-	vst1.64 {d6-d7}, [r7, :128]!
-	vst1.64 {d8-d9}, [r7, :128]!
-	vst1.64 {d10-d11}, [r7, :128]!
-	vst1.64 {d12-d13}, [r7, :128]!
-	vst1.64 {d14-d15}, [r7, :128]!
-	vst1.64 {d18}, [r7 :64]!
-	vst1.64 {d0}, [r7 :64]!
-	vst1.64 {d1-d2}, [r7, :128]!
-*/
-
 
 	vstm r7!, {d0-d15}
 
@@ -800,12 +823,11 @@ Skein1024_Process_Block:
 	veor q9, q10
 	veor d30, d16, d17 /* t2 -> d30 */
 	veor d18, d19
-	/**/
 	veor d18, d31 /* k16 -> d18 */
 
 	vstm r7!, {d18}
 	vstm r7!, {d0-d2}
-	vstm r7!, {d16-d17} /* FIXME: order? */
+	vstm r7!, {d16-d17}
 	vstm r7!, {d30}
 	vstm r7!, {d16}
 
@@ -826,6 +848,7 @@ Skein1024_Process_Block:
 	vadd.u64 d29, d15 /* v14 += t1 */
 	vadd.u64 d30, d14 /* v13 += t2 */
 
+	/* Swizzle keys */
 	vswp d1, d2 /* Swap k1, k2 */
 	vswp d3, d11 /* Swap k3, k11 */
 	vswp d5, d6 /* Swap k5, k6 */
@@ -833,13 +856,13 @@ Skein1024_Process_Block:
 	vswp d4, d5 /* Swap k4, k6 */
 	vswp d9, d10 /* Swap k7, k10 */
 
+	/* Swizzle state */
 	vswp d17, d18 /* Swap v1, v2 */
 	vswp d19, d27 /* Swap v3, v11 */
 	vswp d21, d22 /* Swap v5, v6 */
 	vswp d23, d25 /* Swap v7, v9 */
 	vswp d20, d21 /* Swap v4, v6 */
 	vswp d25, d26 /* Swap v7, v10 */
-
 
 1:
 	S1024_Four_Rounds 0
@@ -881,10 +904,22 @@ Skein1024_Process_Block:
 	vstm r0!, {d16-d17}
 	vstm r0, {d0-d15}
 
-	add sp, 8 * (S1024_STACK_N)
-	vpop {d8-d15}
-	pop {r4-r11}
 	mov sp, r12
+	vpop {d8-d15}
+	pop {r4-r7}
 	bx lr
 
+#ifdef SKEIN_CODE_SIZE
+/* size_t  Skein1024_Process_Block_CodeSize(void);
+*/
+	.global Skein1024_Process_Block_CodeSize
+Skein1024_Process_Block_CodeSize:
+	ldr r0, =$(Skein1024_Process_Block_CodeSize - Skein1024_Process_Block)
+	bx lr
+
+	.global Skein1024_Unroll_Cnt
+Skein1024_Unroll_Cnt:
+	mov r0, 0
+	bx lr
+#endif
 #endif /* 1024 */

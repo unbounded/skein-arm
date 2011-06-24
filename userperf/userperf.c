@@ -5,7 +5,7 @@ MODULE_LICENSE("Dual MIT/GPL");
 
 /*
  * Silly little hack module that enables user access to the ARM performance
-	 * registers by writing to the USEREN register.
+ * registers by writing to the USEREN register.
  */
 
 

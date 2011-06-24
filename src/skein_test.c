@@ -138,7 +138,7 @@ void Timer_Init(void)
     asm ("mrc p15, 0, %0, c9, c14, 0" : "=r"(user_enable));
 #elif defined(__CC_ARM)
 #define COMPILER_ID "ARMCC"
-    __asm { mrc p15, 0, cycles, c9, c14, 0 }
+#error "ARMCC not implemented"
 #else
 #error  "Unknown ARM compiler"
 #endif
@@ -152,17 +152,6 @@ void Timer_Init(void)
     asm volatile ("mcr p15, 0, %0, c9, c12, 1" :: "r"(0x80000000));
     /* Reset overflow flags */
     asm volatile ("mcr p15, 0, %0, c9, c12, 3" :: "r"(0x80000000));
-#elif defined(__CC_ARM)
-    int enable_and_reset = 5, cycle_counter = 0x80000000;
-    __asm
-        {
-        /* Reset and enable */
-        mcr p15, 0, enable_and_reset, c9, c12, 0
-        /* Enable cycle counter */
-        mcr p15, 0, cycle_counter, c9, c12, 1
-        /* Reset overflow flags */
-        mcr p15, 0, cycle_counter, c9, c12, 3
-        }
 #endif
 
 #else
@@ -175,12 +164,6 @@ void Timer_DeInit(void)
 #if defined(__GNUC__)
     /* Disable */
     asm volatile ("mcr p15, 0, %0, c9, c12, 0" :: "r"(0));
-#elif defined(__CC_ARM)
-    int disable = 0;
-    __asm
-        {
-        mcr p15, 0, disable, c9, c12, 0
-        }
 #endif
    }
 
@@ -190,8 +173,6 @@ uint_32t HiResTime(void)
 #if defined(__arm__)
 #if defined(__GNUC__)
     asm volatile ("mrc p15, 0, %0, c9, c13, 0": "=r"(cycles));
-#elif defined(__CC_ARM)
-    __asm { mrc p15, 0, cycles, c9, c13, 0 }
 #endif
     return cycles;
 #else
