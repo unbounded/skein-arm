@@ -103,6 +103,79 @@ RC_512_7_2  = 56 /**/
 RC_512_7_3  = 22
 
 
+RC_1024_0_0 = 24 /**/
+RC_1024_0_1 = 13
+RC_1024_0_2 =  8 /**/
+RC_1024_0_3 = 47
+RC_1024_0_4 =  8 /**/
+RC_1024_0_5 = 17
+RC_1024_0_6 = 22
+RC_1024_0_7 = 37
+
+RC_1024_1_0 = 38
+RC_1024_1_1 = 19
+RC_1024_1_2 = 10
+RC_1024_1_3 = 55
+RC_1024_1_4 = 49
+RC_1024_1_5 = 18
+RC_1024_1_6 = 23
+RC_1024_1_7 = 52
+
+RC_1024_2_0 = 33
+RC_1024_2_1 =  4
+RC_1024_2_2 = 51
+RC_1024_2_3 = 13
+RC_1024_2_4 = 34
+RC_1024_2_5 = 41
+RC_1024_2_6 = 59
+RC_1024_2_7 = 17
+
+RC_1024_3_0 =  5
+RC_1024_3_1 = 20
+RC_1024_3_2 = 48 /**/
+RC_1024_3_3 = 41
+RC_1024_3_4 = 47
+RC_1024_3_5 = 28
+RC_1024_3_6 = 16 /**/
+RC_1024_3_7 = 25
+
+RC_1024_4_0 = 41
+RC_1024_4_1 =  9
+RC_1024_4_2 = 37
+RC_1024_4_3 = 31
+RC_1024_4_4 = 12
+RC_1024_4_5 = 47
+RC_1024_4_6 = 44
+RC_1024_4_7 = 30
+
+RC_1024_5_0 = 16 /**/
+RC_1024_5_1 = 34
+RC_1024_5_2 = 56 /**/
+RC_1024_5_3 = 51
+RC_1024_5_4 =  4
+RC_1024_5_5 = 53
+RC_1024_5_6 = 42
+RC_1024_5_7 = 41
+
+RC_1024_6_0 = 31
+RC_1024_6_1 = 44
+RC_1024_6_2 = 47
+RC_1024_6_3 = 46
+RC_1024_6_4 = 19
+RC_1024_6_5 = 42
+RC_1024_6_6 = 44
+RC_1024_6_7 = 25
+
+RC_1024_7_0 =  9
+RC_1024_7_1 = 48 /**/
+RC_1024_7_2 = 35
+RC_1024_7_3 = 52
+RC_1024_7_4 = 23
+RC_1024_7_5 = 31
+RC_1024_7_6 = 37
+RC_1024_7_7 = 20
+
+
 
 CTX_TWEAK_OFS = 8
 
@@ -432,6 +505,7 @@ Skein_256_Process_Block:
  * Unused: d18-d19
  */
 
+/* TODO: test  stack-fix again */
 	.balign 4
 	.global Skein_512_Process_Block
 Skein_512_Process_Block:
@@ -527,10 +601,290 @@ Skein_512_Process_Block:
 
 #if SKEIN_USE_ASM & 1024
 
+/*
+ The word permutations form these cycles:
+ c1: v4 -> v6 ->
+ c2: v3 -> v11 -> v5 -> v13 ->
+ c3: v1 -> v15 -> v7 -> v9 ->
+ c4: v8 -> v10 -> v12 -> v14 ->
+ c4: v8 -> v14 -> v12 -> v10 ->
+
+ c1, c2 and c3 are split across rounds.
+ The starting order including swizzling should thus be:
+ v0 v2 v15 v11 v6 v4 v13 v9 v8 v10 v7 v3 v12 v14 v5 v1
+ or starting out / after a key injection:
+ v0 v2 v1 v11 v6 v4 v5 v9 v8 v10 v7 v3 v12 v14 v13 v15
+*/
+
+.macro S1024_Round round, interl1, interl2, interl3
+	vsli.64 d12, d23, RC_1024_\round\()_4
+	vswp d23, d26 /* Swap v7 <-> v9  /c3 */
+	vsli.64 d13, d19, RC_1024_\round\()_5
+	vswp d19, d27 /* Swap v3 <-> v11  /c2 */
+	.if (\round && 3) == 0
+	vsli.64 d14, d30, RC_1024_\round\()_6
+	vsli.64 d15, d31, RC_1024_\round\()_7
+	.else
+	vsli.64 d14, d22, RC_1024_\round\()_6
+	vswp d22, d30 /* Swap v5 <-> v13  /c2 */
+	vsli.64 d15, d18, RC_1024_\round\()_7
+	vswp d18, d31 /* Swap v1 <-> v15  /c3 */
+	.endif
+
+	vadd.u64 q12, q13
+	\interl1
+	vadd.u64 q14, q15
+	vsri.64 d12, d26, 64 - RC_1024_\round\()_4
+	vsri.64 d13, d27, 64 - RC_1024_\round\()_5
+	vsri.64 d14, d30, 64 - RC_1024_\round\()_6
+	vswp d20, d21 /* Swap v4 <-> v6  /c1 */
+	vsri.64 d15, d31, 64 - RC_1024_\round\()_7
+	\interl2
+	veor q13, q12, q6
+	veor q15, q14, q7
+	vswp d24, d28 /* Swap v8 <-> v12  /c4 */
+	vadd.u64 q8, q9
+	vswp d28, d29 /* Swap v12 <-> v14  /c4 */
+	vadd.u64 q10, q11
+	vswp d27, d30 /* Swap v11 <-> v13  /c2 */
+	vsli.64 d12, d18, RC_1024_\round\()_0
+	vswp d25, d24 /* Swap v10 <-> v8  /c4 */
+	vsli.64 d13, d19, RC_1024_\round\()_1
+	vswp d26, d31 /* Swap v9 <-> v15  /c3 */
+	vsli.64 d14, d22, RC_1024_\round\()_2
+	vsli.64 d15, d23, RC_1024_\round\()_3
+	vsri.64 d12, d18, 64 - RC_1024_\round\()_0
+	vsri.64 d13, d19, 64 - RC_1024_\round\()_1
+	vsri.64 d14, d22, 64 - RC_1024_\round\()_2
+	vsri.64 d15, d23, 64 - RC_1024_\round\()_3
+	\interl3
+	veor q9, q8, q6
+	veor q11, q10, q7
+	/**/ /**/
+.endm
+
+/*
+ The key is ordered like the state, except the swaps that involve the
+ last four words of the subkey:
+ k0 k2 k1 k11 k6 k4 k5 k9 k8 k10 k7 k3 k12 k14 k13 k15
+ */
+
+.macro S1024_InjectKey
+	/* Load k12-k15 and increment key position */
+	add r7, sp, r4, lsl 3
+	cmp r4, 16
+	add r4, 1
+	vldm r7, {d12-d15}
+	moveq r4, 0
+
+	vadd.u64 q8, q0
+
+	vadd.u64 q10, q2
+	vswp d13, d14 /* Swap k13 <-> k14 */
+
+	vadd.u64 q14, q6
+	vswp d18, d31 /* Swap v1 <-> v15  /c3 */
+
+	vadd.u64 q9, q1 /* Contains v1 */
+	vswp d22, d30 /* Swap v5 <-> v13  /c2 */
+
+	vadd.u64 q15, q7 /* Contains v13, v15 */
+
+	/* Load t0-t1 and increment tweak position */
+	add r7, sp, r5, lsl 3
+	cmp r5, (S1024_SOFS_TWEAKSCHED + 2)
+	add r5, 1
+	vldm r7, {d13-d14} /* t0-t1 -> d13-d14 */
+	moveq r5, S1024_SOFS_TWEAKSCHED
+
+	vadd.u64 q11, q3 /* Contains v5 */
+	#add r7, sp, S1024_SOFS_S
+	#vld1.64 d15, [r7, :64] /* t1 -> d14 */
+	vmov d15, r3, r11
+
+	vadd.u64 q12, q4
+	vadd.u64 q13, q5
+
+	#vadd.u64 q15, q6 /* v13 += t0, v15 += s */
+	vadd.u64 d30, d13
+	vadd.u64 d31, d15
+	vadd.u64 d29, d14 /* v14 += t1 */
+.endm
+
+.macro S1024_Four_Rounds round
+	vswp d0, d12 /* k0 <-> k12 */ 
+	S1024_Round %(\round + 0), < vswp d0, d2 /* k0 <-> k1 */ >, < vswp d2, d1 /* k1 <-> k2 */ >, < vswp d1, d11 /* k2 <-> k3 */ >
+	S1024_Round %(\round + 1), < vswp d11, d5 /* k3 <-> k4 */ >, < vswp d5, d6 /* k4 <-> k5 */ >, < vswp d6, d4 /* k5 <-> k6 */ >
+	S1024_Round %(\round + 2), < vswp d4, d10 /* k6 <-> k7 */ >, < vswp d10, d8 /* k7 <-> k8 */ >, < vswp d8, d7 /* k8 <-> k9 */ >
+	add r3, 1 /* s++ */
+	S1024_Round %(\round + 3), < vswp d7, d9 /* k9 <-> k10 */ >, < vswp d9, d3 /* k10 <-> k11 */ >, < >
+
+	S1024_InjectKey
+.endm
+
+
+S1024_SOFS_KEYSCHED = 0
+S1024_SOFS_TWEAKSCHED = 20
+#S1024_SOFS_S = 24
+S1024_SOFS_BYTECNTADD = S1024_SOFS_TWEAKSCHED + 4
+S1024_STACK_N = S1024_SOFS_BYTECNTADD
+
+/* Constants */
+	.balign 16
+.S1024C_C240:
+	.word SKEIN_KS_C240_LOW, SKEIN_KS_C240_HIGH
+.S1024C_1:
+	.quad 1
+
+
+/* void Skein1024_Process_Block(Skein1024_Ctxt_t *ctx, const u08b_t *blkPtr, size_t blkCnt, size_t byteCntAdd); */
+
 	.balign 4
 	.global Skein1024_Process_Block
 Skein1024_Process_Block:
-#error TODO
+	add r0, CTX_TWEAK_OFS
+	vldm r0, {d0-d9} /* t0,t1 -> d0,d1; k0-k7 -> d2-d9 */
+
+	mov r12, sp
+	bic sp, 15 /* Align the stack to 128 bits */ /* FIXME: after push */
+	push {r4-r11}
+	vpush {d8-d15}
+
+	mov r11, 0
+
+	sub sp, 8 * (S1024_STACK_N) /* Allocate space for k0-k16,k0-k2, t0-t2,t0, byteCntAdd */
+
+	str r3, [sp, S1024_SOFS_BYTECNTADD * 8]
+	str r11, [sp, (S1024_SOFS_BYTECNTADD * 8 + 4)]
+
+	vldm r0, {d16-d17} /* t0,t1 -> d16-d17 */
+	add r7, r0, (2 * 8)
+	vldm r7, {d0-d15} /* k0-k15 -> d0-d15 */
+
+0:
+	mov r3, 0 /* s = 0 */
+	mov r4, S1024_SOFS_KEYSCHED + 13 /* Keypos = 13 */
+	mov r5, S1024_SOFS_TWEAKSCHED + 1 /* Tweakpos = 1 */
+
+	adr r7, .S1024C_C240
+	vld1.64 d31, [r7,:64] /* C240 -> d31 */
+	add r7, sp, (S1024_SOFS_BYTECNTADD * 8)
+	vld1.64 d29, [r7,:64] /* byteCntAdd -> d29 */
+
+	add r7, sp, (S1024_SOFS_KEYSCHED * 8)
+/*
+	vst1.64 {d0-d1}, [r7, :128]!
+	vst1.64 {d2-d3}, [r7, :128]!
+	vst1.64 {d4-d5}, [r7, :128]!
+	vst1.64 {d6-d7}, [r7, :128]!
+	vst1.64 {d8-d9}, [r7, :128]!
+	vst1.64 {d10-d11}, [r7, :128]!
+	vst1.64 {d12-d13}, [r7, :128]!
+	vst1.64 {d14-d15}, [r7, :128]!
+	vst1.64 {d18}, [r7 :64]!
+	vst1.64 {d0}, [r7 :64]!
+	vst1.64 {d1-d2}, [r7, :128]!
+*/
+
+
+	vstm r7!, {d0-d15}
+
+	/* Calculate k16 and t2 */
+	veor q9, q0, q1
+	veor q10, q2, q3
+	veor q9, q4
+	veor q10, q5
+	veor q9, q6
+	veor q10, q7
+	vadd.u64 d16, d29 /* t0 += byteCntAdd */
+	veor q9, q10
+	veor d30, d16, d17 /* t2 -> d30 */
+	veor d18, d19
+	/**/
+	veor d18, d31 /* k16 -> d18 */
+
+	vstm r7!, {d18}
+	vstm r7!, {d0-d2}
+	vstm r7!, {d16-d17} /* FIXME: order? */
+	vstm r7!, {d30}
+	vstm r7!, {d16}
+
+	/* Initial key injection */
+	vldm r1, {d16-d31} /* p0-p15 -> d16-d31 */
+	vadd.u64 q8, q0
+	vadd.u64 q9, q1
+	vadd.u64 q15, q7
+	vadd.u64 q10, q2
+	vadd.u64 q11, q3
+	add r7, sp, (S1024_SOFS_TWEAKSCHED * 8)
+	vld1.64 {d14, d15}, [r7, :128] /* t0-t1 -> d14-d15 */
+	vadd.u64 q12, q4
+	vadd.u64 q13, q5
+	vadd.u64 q14, q6
+	vswp d29, d30 /* Swap v13 <-> v14 */
+
+	vadd.u64 d29, d15 /* v14 += t1 */
+	vadd.u64 d30, d14 /* v13 += t2 */
+
+	vswp d1, d2 /* Swap k1, k2 */
+	vswp d3, d11 /* Swap k3, k11 */
+	vswp d5, d6 /* Swap k5, k6 */
+	vswp d7, d9 /* Swap k7, k9 */
+	vswp d4, d5 /* Swap k4, k6 */
+	vswp d9, d10 /* Swap k7, k10 */
+
+	vswp d17, d18 /* Swap v1, v2 */
+	vswp d19, d27 /* Swap v3, v11 */
+	vswp d21, d22 /* Swap v5, v6 */
+	vswp d23, d25 /* Swap v7, v9 */
+	vswp d20, d21 /* Swap v4, v6 */
+	vswp d25, d26 /* Swap v7, v10 */
+
+
+1:
+	S1024_Four_Rounds 0
+	S1024_Four_Rounds 4
+
+	cmp r3, 20 /* Loop until s = 20 */
+	bne 1b
+
+	/* Unswap state */
+	vswp d29, d30 /* Swap v14, k15 */
+	vswp d25, d26 /* Swap v7, v10 */
+	vswp d20, d21 /* Swap v4, v6 */
+	vswp d23, d25 /* Swap v7, v9 */
+	vswp d21, d22 /* Swap v5, v6 */
+	vswp d19, d27 /* Swap v3, v11 */
+	vswp d17, d18 /* Swap v1, v2 */
+
+	/* Xor state with plaintext to get new key */
+	vldm r1!, {d0-d15} /* p0-p15 -> d0-d31 */
+	veor q0, q8
+	veor q1, q9
+	veor q2, q10
+	veor q3, q11
+	veor q4, q12
+	veor q5, q13
+	veor q6, q14
+	veor q7, q15
+
+	/* Clear 'first' bit from t1 (+ an unused position bit) */
+	add r7, sp, (S1024_SOFS_TWEAKSCHED * 8)
+	vld1.64 {d16,d17}, [r7,:128] /* t0-t1 -> d16-d17 */
+	vbic.i32 d17, 1 << (SKEIN_T1_FIRST_FLAG - 32)
+
+	/* Loop if there are more blocks */
+	subs r2, 1 /* blkCnt-- */
+	bne 0b
+
+	/* Save new key and tweak */
+	vstm r0!, {d16-d17}
+	vstm r0, {d0-d15}
+
+	add sp, 8 * (S1024_STACK_N)
+	vpop {d8-d15}
+	pop {r4-r11}
+	mov sp, r12
 	bx lr
 
 #endif /* 1024 */
