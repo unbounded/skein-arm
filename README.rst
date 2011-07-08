@@ -29,7 +29,7 @@ Compiling and running the test program
 --------------------------------------
 The Skein test program can be compiled using GCC as follows::
 
-  gcc *.c *.S -DSKEIN_USE_ASM=256+512+1024
+  gcc *.c skein_block_cortexa8.S -DSKEIN_USE_ASM=256+512+1024
 
 In order for the performance test to have an accurate timer, you will need
 to enable user mode access to the ARM performance monitor registers.
