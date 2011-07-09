@@ -4,6 +4,7 @@
   Implemented according to ``The Skein Hash Function Family'' version 1.3
 
   Changes:
+    2011-07-09: Made code ARMv5TE compatible.
     2011-07-09: Implemented Skein-256.
 
   Author: Håkon Haugdal Hitland <haakhi@gmail.com>
@@ -17,7 +18,7 @@
   for its correctness.
 */
 
-	.arch armv7a
+	.arch armv5te
 	.syntax unified
 	.altmacro
 	.text
@@ -325,7 +326,7 @@ Skein_256_Process_Block:
 	ldr r12, [sp, S256_SOFS_BLKCNT] /* blkCnt -> r12 */
 	ldrd r10, r11, [sp, S256_SOFS_TWEAKSCHED + 8]
 	ldrd r8, r9, [sp, S256_SOFS_TWEAKSCHED] /* t0,t1 -> r8-r11 */
-	bfc r11, (SKEIN_T1_FIRST_FLAG - 32), 1 /* Clear 'first' flag from t1 */
+	bic r11, 1 << (SKEIN_T1_FIRST_FLAG - 32) /* Clear 'first' flag from t1 */
 
 	/* Loop if more blocks */
 	subs r12, 1

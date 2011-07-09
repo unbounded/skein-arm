@@ -25,7 +25,7 @@ Skein-512  15.4
 Skein-1024 20.2
 ========== ====
 
-Without SIMD:
+Without NEON:
 
 ========== ====
 Skein-256  21.7
