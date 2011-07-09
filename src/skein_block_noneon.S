@@ -87,7 +87,6 @@ CTX_TWEAK_OFS = 8
 .endm
 
 /* Round seven has rotation constants of 32, which saves a cycle on the rotation */
-/* Todo: try saving additional cycle by unswapping in the key injection */
 .macro S256_Round7
 	adds r4, r2
 
@@ -119,30 +118,41 @@ CTX_TWEAK_OFS = 8
 .endm
 
 .macro S256_InjectKey subkey
+/* Calculate tweak and key addresses */
+TWEAK1_ADR = S256_SOFS_TWEAKSCHED + 8 * ((\subkey + 1) % 3)
+KEY0_ADR = S256_SOFS_KEYSCHED + 8 * ((\subkey) % 5)
+
+	/* t0 is left in r11:r10 from previous key round */
+	ldr r8, [sp, KEY0_ADR]
+
+	ldr r9, [sp, KEY0_ADR + 4]
 	adds r2, r10
 
+	ldr r10, [sp, KEY0_ADR + 8]
 	adc r3, r11 /* v1 += t0 */
-	add r12, sp, S256_SOFS_KEYSCHED + 8 * (\subkey % 5) /* load key position */
 
-	ldm r12!, {r8-r11} /* k0,k1 -> r9:r8, r11:r10 */
+	ldr r11, [sp, KEY0_ADR + 12] /* k0,k1 -> r9:r8, r11:r10 */
 	adds r0, r8
 
+	ldr r8, [sp, KEY0_ADR + 16]
 	adc r1, r9 /* v0 += k0 */
+
+	ldr r9, [sp, KEY0_ADR + 20]
 	adds r2, r10
 
+	ldr r10, [sp, KEY0_ADR + 24]
 	adc r3, r11 /* v1 += k1 */
-	/**/
 
-	ldm r12!, {r8-r11} /* k2,k3 -> r9:r8, r11:r10 */
+	ldr r11, [sp, KEY0_ADR + 28] /* k2,k3 -> r9:r8, r11:r10 */
 	adds r4, r8
 
 	adc r5, r9 /* v2 += k2 */
 	adds r6, r10
 
 	adc r7, r11 /* v3 += k3 */
-	/**/
+	ldr r10, [sp, TWEAK1_ADR]
 
-	ldrd r10, r11, [sp, (S256_SOFS_TWEAKSCHED) + 8 * ((\subkey + 1) % 3)] /* t1 -> r11:r10 */
+	ldr r11, [sp, TWEAK1_ADR + 4] /* t1 -> r11:r10 */
 	adds r6, \subkey
 
 	adc r7, 0 /* v4 += s */
@@ -215,20 +225,20 @@ Skein_256_Process_Block:
 
 	/* Initial key injection */
 	/* Add plaintext */
-	add r12, r11, 16
+	mov r12, r11
 	ldr r8, [r11, 0]
 	ldr r9, [r11, 4]
 	ldr r10, [r11, 8]
 	adds r0, r8
 	ldr r11, [r11, 12] /* p0,p1 -> r8-r11 */
 	adc r1, r9
-	ldr r8, [r12, 0]
+	ldr r8, [r12, 16]
 	adds r2, r10
-	ldr r9, [r12, 4]
+	ldr r9, [r12, 20]
 	adc r3, r11 /* v0,v1 += p0,p1 */
-	ldr r10, [r12, 8]
+	ldr r10, [r12, 24]
 	adds r4, r8
-	ldr r11, [r12, 12] /* p2,p3 -> r8-r11 */
+	ldr r11, [r12, 28] /* p2,p3 -> r8-r11 */
 	adc r5, r9
 	ldr r8, [sp, S256_SOFS_TWEAKSCHED]
 	adds r6, r10
@@ -241,15 +251,11 @@ Skein_256_Process_Block:
 	adds r4, r10
 	adc r5, r11 /* v2 += t1 */
 	
-	.balign 8
-	nop
 	.irp round, 0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64, 68
 	S256_Four_Rounds \round
 	.endr
 
 	/* Xor state with plaintext to get new key */
-	ldr r12, [sp, S256_SOFS_BLKPTR]
-	/**/
 	#ldm r12!, {r8-r11} /* p0,p1 -> r8-r11 */
 	ldr r8, [r12]
 	ldr r9, [r12, 4]
