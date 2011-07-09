@@ -8,13 +8,16 @@ The implementation is targeted towards the ARM Cortex-A8_ processor, and
 uses the NEON_ SIMD instructions to perform 64-bit operations, where
 possible in parallel.
 
-It is based on the optimized C version written by Doug Whiting, with the
+There is also a Skein-256 implementation that does not require NEON support.
+
+The code is based on the optimized C version written by Doug Whiting, with the
 block functions rewritten in ARM assembly language.
 
 
 Performance
 -----------
-For long messages the implementation reaches the following speeds in cycles per byte:
+For long messages the implementation reaches the following speeds in
+cycles per byte when tested on Cortex-A8 processor:
 
 ========== ====
 Skein-256  20.3
@@ -22,7 +25,14 @@ Skein-512  15.4
 Skein-1024 20.2
 ========== ====
 
-See performance_test.txt for full test output.
+Without SIMD:
+
+========== ====
+Skein-256  21.7
+========== ====
+
+
+See performance_test.txt for more detailed test output.
 
 
 Compiling and running the test program
