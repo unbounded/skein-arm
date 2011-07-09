@@ -108,7 +108,7 @@ CTX_TWEAK_OFS = 8
 .endm
 
 .macro S256_Round round
-	/* Sepate odd and even rounds */
+	/* Separate odd and even rounds */
 	.if \round == 7
 	S256_Round7 /* Special case round 7 */
 	.elseif \round && 1
@@ -186,55 +186,63 @@ Skein_256_Process_Block:
 0:
 	/* Calculate and store tweaks */
 	ldr r12, [sp, S256_SOFS_BYTECNTADD] /* byteCntAdd -> r6 */
-	/**/
+	str r10, [sp, S256_SOFS_TWEAKSCHED + 8]
+	str r11, [sp, S256_SOFS_TWEAKSCHED + 12] /* Store t1 */
 	adds r8, r12
-	/**/
-	adc r9, 0
-	add r12, sp, S256_SOFS_TWEAKSCHED
-	stm r12!, {r8-r11} /* Store t0-t1 */
+	str r8, [sp, S256_SOFS_TWEAKSCHED]
+	adc r9, 0 /* t0 += byteCntAdd */
+	str r9, [sp, S256_SOFS_TWEAKSCHED + 4] /* Store t0 */
 	eor r8, r10
-	eor r9, r11
-	strd r8, r9, [r12] /* Store t2 */
+	eor r9, r11 /* t2 -> r9:r8 */
+	str r8, [sp, S256_SOFS_TWEAKSCHED + 16]
+	str r9, [sp, S256_SOFS_TWEAKSCHED + 20] /* Store t2 */
 	
 	/* Calculate and store key */
 	eor r8, r0, r2
 	eor r9, r1, r3
 	eor r8, r4
-	ldrd r10, r11, .S256C_C240 /* C240 -> r11:r10 */
+	ldr r10, .S256C_C240
 	add r12, sp, S256_SOFS_KEYSCHED
+	ldr r11, .S256C_C240 + 4 /* C240 -> r11:r10 */
 	eor r9, r5
 	eor r8, r6
 	eor r9, r7
 	eor r8, r10
-	eor r9, r11 /* k4 -> r12:r11 */
+	eor r9, r11 /* k4 -> r9:r8 */
 	stm r12!, {r0-r9} /* Store k0-k4 */
+	ldr r11, [sp, S256_SOFS_BLKPTR] /* blkPtr -> r11; Prepare for reading plaintext */
 	stm r12, {r0-r5} /* Store k0-k2 */
 
 	/* Initial key injection */
 	/* Add plaintext */
-	ldr r12, [sp, S256_SOFS_BLKPTR]
-	/**/
-	ldm r12!, {r8-r11} /* p0,p1 -> r8-r11 */
-	/**/
+	add r12, r11, 16
+	ldr r8, [r11, 0]
+	ldr r9, [r11, 4]
+	ldr r10, [r11, 8]
 	adds r0, r8
+	ldr r11, [r11, 12] /* p0,p1 -> r8-r11 */
 	adc r1, r9
+	ldr r8, [r12, 0]
 	adds r2, r10
-	adc r3, r11
-	ldm r12, {r8-r11} /* p2,p3 -> r8-r11 */
+	ldr r9, [r12, 4]
+	adc r3, r11 /* v0,v1 += p0,p1 */
+	ldr r10, [r12, 8]
 	adds r4, r8
+	ldr r11, [r12, 12] /* p2,p3 -> r8-r11 */
 	adc r5, r9
+	ldr r8, [sp, S256_SOFS_TWEAKSCHED]
 	adds r6, r10
-	adc r7, r11
-
-	add r12, sp, S256_SOFS_TWEAKSCHED
-	/**/
-	ldm r12, {r8-r11} /* t0, t1 -> r8-r11 */
-	/**/
+	ldr r9, [sp, S256_SOFS_TWEAKSCHED + 4]
+	adc r7, r11 /* v2,v3 += p2,p3 */
+	ldr r10, [sp, S256_SOFS_TWEAKSCHED + 8]
 	adds r2, r8
+	ldr r11, [sp, S256_SOFS_TWEAKSCHED + 12]
 	adc r3, r9 /* v1 += t0 */
 	adds r4, r10
 	adc r5, r11 /* v2 += t1 */
 	
+	.balign 8
+	nop
 	.irp round, 0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64, 68
 	S256_Four_Rounds \round
 	.endr
@@ -242,26 +250,32 @@ Skein_256_Process_Block:
 	/* Xor state with plaintext to get new key */
 	ldr r12, [sp, S256_SOFS_BLKPTR]
 	/**/
-	ldm r12!, {r8-r11} /* p0,p1 -> r8-r11 */
-	/**/
+	#ldm r12!, {r8-r11} /* p0,p1 -> r8-r11 */
+	ldr r8, [r12]
+	ldr r9, [r12, 4]
+	ldr r10, [r12, 8]
 	eor r0, r8
+	ldr r11, [r12, 12] /* p0,p1 -> r8-r11 */
 	eor r1, r9
+	#ldm r12!, {r8-r11} /* p2,p3 -> r8-r11 */
+	ldr r8, [r12, 16]
 	eor r2, r10
-	eor r3, r11
-	ldm r12!, {r8-r11} /* p2,p3 -> r8-r11 */
+	ldr r9, [r12, 20]
+	eor r3, r11 /* v0,v1 ^= p0,p1 */
+	ldr r10, [r12, 24]
 	eor r4, r8
+	ldr r11, [r12, 28]
 	eor r5, r9
-	str r12, [sp, S256_SOFS_BLKPTR] /* Store new blkPtr */
+	add r12, 32 /* blkPtr += 32 */
 	eor r6, r10
-	eor r7, r11
+	str r12, [sp, S256_SOFS_BLKPTR] /* Store new blkPtr */
+	eor r7, r11 /* v2,v3 ^= p2,p2 */
 
 	/* Load tweaks */
-	add r12, sp, S256_SOFS_TWEAKSCHED
-	ldm r12, {r8-r11} /* t0,t1 -> r8-r11 */
-
 	ldr r12, [sp, S256_SOFS_BLKCNT] /* blkCnt -> r12 */
-	bfc r11, (SKEIN_T1_FIRST_FLAG - 32), 1 /* Clear first flag from t1 */
-	ldrd r8, r9, [sp, S256_SOFS_TWEAKSCHED] /* t0 -> r9:r8 */
+	ldrd r10, r11, [sp, S256_SOFS_TWEAKSCHED + 8]
+	ldrd r8, r9, [sp, S256_SOFS_TWEAKSCHED] /* t0,t1 -> r8-r11 */
+	bfc r11, (SKEIN_T1_FIRST_FLAG - 32), 1 /* Clear 'first' flag from t1 */
 
 	/* Loop if more blocks */
 	subs r12, 1
@@ -279,4 +293,17 @@ Skein_256_Process_Block:
 	pop {r4-r11}
 	bx lr
 	
+#ifdef SKEIN_CODE_SIZE
+/* size_t  Skein_256_Process_Block_CodeSize(void);
+*/
+	.global Skein_256_Process_Block_CodeSize
+Skein_256_Process_Block_CodeSize:
+	ldr r0, =$(Skein_256_Process_Block_CodeSize - Skein_256_Process_Block)
+	bx lr
+
+	.global Skein_256_Unroll_Cnt
+Skein_256_Unroll_Cnt:
+	mov r0, 0
+	bx lr
+#endif
 #endif /* 256 */
