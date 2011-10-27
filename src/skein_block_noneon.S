@@ -18,7 +18,12 @@
   for its correctness.
 */
 
+#ifdef __thumb__
+	.arch armv6t2
+	.thumb
+#else
 	.arch armv5te
+#endif
 	.syntax unified
 	.altmacro
 	.text

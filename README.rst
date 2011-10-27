@@ -17,7 +17,7 @@ block functions rewritten in ARM assembly language.
 Performance
 -----------
 For long messages the implementation reaches the following speeds in
-cycles per byte when tested on Cortex-A8 processor:
+cycles per byte when tested on a Cortex-A8 processor:
 
 ========== ====
 Skein-256  20.3
