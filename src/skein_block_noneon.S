@@ -394,13 +394,13 @@ Skein_256_Process_Block:
 #ifdef SKEIN_CODE_SIZE
 /* size_t  Skein_256_Process_Block_CodeSize(void);
 */
-.S256_CODE_SIZE:
-	.word Skein_256_Process_Block_CodeSize - Skein_256_Process_Block
-
 	.global Skein_256_Process_Block_CodeSize
 Skein_256_Process_Block_CodeSize:
 	ldr r0, .S256_CODE_SIZE
 	bx lr
+
+.S256_CODE_SIZE:
+	.word Skein_256_Process_Block_CodeSize - .S256C_C240
 
 	.global Skein_256_Unroll_Cnt
 Skein_256_Unroll_Cnt:
@@ -653,7 +653,7 @@ S512_SOFS_BLKCNT = S512_SOFS_BLKPTR + 4
 S512_SOFS_BYTECNTADD = S512_SOFS_BLKCNT + 4
 
 /* Constants */
-.S512_C240:
+.S512C_C240:
 	.word SKEIN_KS_C240_LOW, SKEIN_KS_C240_HIGH
 
 /* void Skein_512_Process_Block(Skein_512_Ctxt_t *ctx, const u08b_t *blkPtr, size_t blkCnt, size_t byteCntAdd); */
@@ -684,7 +684,7 @@ Skein_512_Process_Block:
 	sub sp, S512_SOFS_CTX /* Allocate space for tweaks, keys and tmp */
 
 	add r14, sp, S512_SOFS_KEYSCHED
-	ldr r10, .S512_C240
+	ldr r10, .S512C_C240
 
 	ldm r12, {r0-r9} /* Load k0-k4 */
 
@@ -695,7 +695,7 @@ Skein_512_Process_Block:
 	eor r0, r2
 
 	eor r1, r3 /* k8 = k1 ^ k2 */
-	ldr r11, .S512_C240 + 4 /* C240 -> r11:r10 */
+	ldr r11, .S512C_C240 + 4 /* C240 -> r11:r10 */
 
 	eor r0, r10
 	ldr r2, [r12, 8*5]
@@ -820,10 +820,10 @@ Skein_512_Process_Block:
 	ldr r5, [sp, S512_SOFS_TMP1 + 4] /* v7 -> r5:r4 */
 
 	eor r1, r7 /* k8 ^= k3 */
-	ldr r6, .S512_C240
+	ldr r6, .S512C_C240
 
 	eor r0, r8
-	ldr r7, .S512_C240 + 4 /* C240 -> r7:r6 */
+	ldr r7, .S512C_C240 + 4 /* C240 -> r7:r6 */
 
 	eor r1, r9 /* k8 ^= k4 */
 	ldr r8, [r14, 40]
@@ -1073,13 +1073,13 @@ Skein_512_Process_Block:
 #ifdef SKEIN_CODE_SIZE
 /* size_t  Skein_512_Process_Block_CodeSize(void);
 */
-.S512_CODE_SIZE:
-	.word Skein_512_Process_Block_CodeSize - Skein_512_Process_Block
-
 	.global Skein_512_Process_Block_CodeSize
 Skein_512_Process_Block_CodeSize:
 	ldr r0, .S512_CODE_SIZE
 	bx lr
+
+.S512_CODE_SIZE:
+	.word Skein_512_Process_Block_CodeSize - .S512C_C240
 
 	.global Skein_512_Unroll_Cnt
 Skein_512_Unroll_Cnt:

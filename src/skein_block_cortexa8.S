@@ -20,6 +20,9 @@
 
 
 	.arch armv7a
+#ifdef __thumb__
+	.thumb
+#endif
 	.fpu neon
 	.syntax unified
 	.altmacro
@@ -376,8 +379,11 @@ Skein_256_Process_Block:
 */
 	.global Skein_256_Process_Block_CodeSize
 Skein_256_Process_Block_CodeSize:
-	ldr r0, =$(Skein_256_Process_Block_CodeSize - Skein_256_Process_Block)
+	ldr r0, .S256_CODE_SIZE
 	bx lr
+
+.S256_CODE_SIZE:
+	.word Skein_256_Process_Block_CodeSize - .S256C_rol16tbl
 
 	.global Skein_256_Unroll_Cnt
 Skein_256_Unroll_Cnt:
@@ -520,10 +526,15 @@ Skein_512_Process_Block:
 	add r0, CTX_TWEAK_OFS
 	vldm r0, {d0-d9} /* t0,t1 -> d0,d1; k0-k7 -> d2-d9 */
 
-	mov r12, sp
-	bic sp, 15 /* align the stack to 128 bits */
 	push {r4-r7}
 	vpush {d8-d15}
+	mov r12, sp
+#ifdef __thumb__
+	bic r4, r12, 15
+	mov sp, r4
+#else
+	bic sp, 15 /* align the stack to 128 bits */
+#endif
 
 	vmov d12, d1 /* t1 -> d12 */
 
@@ -598,9 +609,9 @@ Skein_512_Process_Block:
 	vmov d1, d12 /* t1 -> d1 */
 	vstm r0, {d0-d9} /* save t0-t1, k0-k7 */
 
+	mov sp, r12
 	vpop {d8-d15}
 	pop {r4-r7}
-	mov sp, r12
 	bx lr
 
 #ifdef SKEIN_CODE_SIZE
@@ -608,8 +619,11 @@ Skein_512_Process_Block:
 */
 	.global Skein_512_Process_Block_CodeSize
 Skein_512_Process_Block_CodeSize:
-	ldr r0, =$(Skein_512_Process_Block_CodeSize - Skein_512_Process_Block)
+	ldr r0, .S512_CODE_SIZE
 	bx lr
+
+.S512_CODE_SIZE:
+	.word Skein_512_Process_Block_CodeSize - .S512C_rol8tbl
 
 	.global Skein_512_Unroll_Cnt
 Skein_512_Unroll_Cnt:
@@ -694,6 +708,7 @@ Skein_512_Unroll_Cnt:
 	cmp r4, 16
 	add r4, 1
 	vldm r7, {d12-d15}
+	it eq
 	moveq r4, 0
 
 	vadd.u64 q8, q0
@@ -714,6 +729,7 @@ Skein_512_Unroll_Cnt:
 	cmp r5, (S1024_SOFS_TWEAKSCHED + 2)
 	add r5, 1
 	vldm r7, {d13-d14} /* t0-t1 -> d13-d14 */
+	it eq
 	moveq r5, S1024_SOFS_TWEAKSCHED
 
 	vadd.u64 q11, q3 /* Contains v5 */
@@ -785,7 +801,12 @@ Skein1024_Process_Block:
 	push {r4-r7}
 	vpush {d8-d15}
 	mov r12, sp
-	bic sp, 15 /* Align the stack to 128 bits */
+#ifdef __thumb__
+	bic r4, r12, 15
+	mov sp, r4
+#else
+	bic sp, 15 /* align the stack to 128 bits */
+#endif
 
 	mov r6, 0
 
@@ -914,8 +935,11 @@ Skein1024_Process_Block:
 */
 	.global Skein1024_Process_Block_CodeSize
 Skein1024_Process_Block_CodeSize:
-	ldr r0, =$(Skein1024_Process_Block_CodeSize - Skein1024_Process_Block)
+	ldr r0, .S1024_CODE_SIZE
 	bx lr
+
+.S1024_CODE_SIZE:
+	.word Skein1024_Process_Block_CodeSize - .S1024C_C240
 
 	.global Skein1024_Unroll_Cnt
 Skein1024_Unroll_Cnt:
