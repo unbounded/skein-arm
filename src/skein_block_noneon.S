@@ -570,46 +570,43 @@ KEY7_ADR = S512_SOFS_KEYSCHED + 8 * ((\subkey + 7) % 9)
 	ldr r14, [sp, KEY7_ADR + 4]
 
 	adds reg0, r12
-	ldr r12, [sp, KEY0_ADR]
-
-	adc reg1, r14 /* v7 += k7 */
-	ldr r14, [sp, KEY0_ADR + 4]
-
-	adds reg0, \subkey
 	str reg4, [sp, TMP2]
 
-	adc reg1, 0 /* v7 += s */
+	adc reg1, r14 /* v7 += k7 */
 	str reg5, [sp, TMP2 + 4] /* TMP2 <- v5 */
 
-	strd reg0, reg1, [sp, TMP3] /* TMP3 <- v7 */
-	/**/
+	adds reg0, \subkey
+	str reg0, [sp, TMP3]
 
-	ldrd reg0, reg1, [sp, TMP0] /* reg1:reg0 <- v4 */
-	/**/
+	add reg0, sp, KEY1_ADR /* point reg0 to k1 */
+	ldr r12, [sp, KEY0_ADR]
 
-	ldrd reg4, reg5, [sp, TMP1] /* reg5:reg4 <- v6 */
-	/**/
+	adc reg1, 0 /* v7 += s */
+	str reg1, [sp, TMP3 + 4] /* TMP3 <- v7 */
 
+	ldr r14, [sp, KEY0_ADR + 4]
 	adds reg8, r12
-	ldr r12, [sp, KEY1_ADR]
 
+	ldm reg0, {reg0, reg1, reg4, reg5} /* reg1:reg0 <- k1, reg5:reg4 <- k2 */
 	adc reg9, r14 /* v0 += k0 */
-	ldr r14, [sp, KEY1_ADR + 4]
 
-	adds reg2, r12
-	ldr r12, [sp, KEY2_ADR]
-
-	adc reg3, r14 /* v1 += k1 */
-	ldr r14, [sp, KEY2_ADR + 4]
-
-	adds reg10, r12
+	adds reg2, reg0
 	ldr r12, [sp, KEY3_ADR]
 
-	adc reg11, r14 /* v2 += k2 */
+	adc reg3, reg1 /* v1 += k1 */
 	ldr r14, [sp, KEY3_ADR + 4]
+
+	adds reg10, reg4
+	ldr reg0, [sp, TMP0]
+
+	adc reg11, reg5 /* v2 += k2 */
+	ldr reg1, [sp, TMP0 + 4] /* reg1:reg0 <- v4 */
 
 	adds reg6, r12
 	ldr r12, [sp, KEY4_ADR]
+
+	ldrd reg4, reg5, [sp, TMP1] /* reg5:reg4 <- v6 */
+	/**/
 
 	adc reg7, r14 /* v3 += k3 */
 	ldr r14, [sp, KEY4_ADR + 4]
@@ -650,7 +647,7 @@ S512_SOFS_TMP2 = S512_SOFS_TMP1 + 8
 S512_SOFS_TMP3 = S512_SOFS_TMP2 + 8
 S512_SOFS_TWEAKSCHED = S512_SOFS_TMP3 + 8
 S512_SOFS_KEYSCHED = S512_SOFS_TWEAKSCHED + (8 * 3)
-S512_SOFS_CTX = S512_SOFS_KEYSCHED + (8 * 9)
+S512_SOFS_CTX = S512_SOFS_KEYSCHED + (8 * 10)
 S512_SOFS_BLKPTR = S512_SOFS_CTX + 4
 S512_SOFS_BLKCNT = S512_SOFS_BLKPTR + 4
 S512_SOFS_BYTECNTADD = S512_SOFS_BLKCNT + 4
@@ -669,7 +666,7 @@ S512_SOFS_BYTECNTADD = S512_SOFS_BLKCNT + 4
  * Stack contents:
  * S256_SOFS_TMP0-3 (4 * 8): v4,v6 and v5,v7 when swapped out
  * S256_SOFS_TWEAKSCHED (3 * 8): Tweak schedule t0-t2
- * S256_SOFS_KEYSCHED (9 * 8): Key schedule k0-k8
+ * S256_SOFS_KEYSCHED (10 * 8): Key schedule k0-k8, k0
  * S256_SOFS_CTX (1 * 4): Pointer to tweak and state
  *                        Points to first state word, with tweak at negative
                           offset
@@ -690,6 +687,9 @@ Skein_512_Process_Block:
 	ldr r10, .S512_C240
 
 	ldm r12, {r0-r9} /* Load k0-k4 */
+
+	/* Store extra k0 */
+	strd r0, r1, [sp, S512_SOFS_KEYSCHED + 8*9]
 
 	stm r14, {r0-r9} /* Store k0-k4 */
 	eor r0, r2
@@ -799,6 +799,10 @@ Skein_512_Process_Block:
 	ldr r11, [sp, S512_SOFS_TMP2] /* Restore v6 -> r11:r10 */
 
 	stm r12, {r0-r9} /* Store k0-k4 */
+
+	/* Store extra k0 */
+	strd r0, r1, [sp, S512_SOFS_KEYSCHED + 8*9]
+
 	/* Current r0-r11 state: k0, k1, k2, k3, k4, v6 */
 	/* Calculate k8 -> r1:r0 */
 	eor r0, r2
