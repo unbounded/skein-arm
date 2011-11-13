@@ -43,6 +43,7 @@ The Skein test program can be compiled using GCC as follows::
   gcc *.c skein_block_cortexa8.S -DSKEIN_USE_ASM=256+512+1024
 
 Or without NEON::
+
   gcc *.c skein_block_noneon.S -DSKEIN_USE_ASM=256+512
 
 In order for the performance test to have an accurate timer, you will need
