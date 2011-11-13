@@ -8,7 +8,7 @@ The implementation is targeted towards the ARM Cortex-A8_ processor, and
 uses the NEON_ SIMD instructions to perform 64-bit operations, where
 possible in parallel.
 
-There is also a Skein-256 implementation that does not require NEON support.
+There are also Skein-256 and Skein-512 implementations that do not require NEON support.
 
 The code is based on the optimized C version written by Doug Whiting, with the
 block functions rewritten in ARM assembly language.
@@ -29,6 +29,7 @@ Without NEON:
 
 ========== ====
 Skein-256  21.7
+Skein-512  25.2
 ========== ====
 
 
@@ -40,6 +41,9 @@ Compiling and running the test program
 The Skein test program can be compiled using GCC as follows::
 
   gcc *.c skein_block_cortexa8.S -DSKEIN_USE_ASM=256+512+1024
+
+Or without NEON::
+  gcc *.c skein_block_noneon.S -DSKEIN_USE_ASM=256+512
 
 In order for the performance test to have an accurate timer, you will need
 to enable user mode access to the ARM performance monitor registers.

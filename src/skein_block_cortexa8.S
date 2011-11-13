@@ -5,6 +5,8 @@
   Implemented according to ``The Skein Hash Function Family'' version 1.3
 
   Changes:
+    2011-11-13: Included constants in code size.
+    2011-11-13: Added explicit IT instructions where appropriate for Thumb.
     2011-06-24: Released. Skein-256, Skein-512 and Skein-1024 all work.
 
   Author: Håkon Haugdal Hitland <haakhi@gmail.com>

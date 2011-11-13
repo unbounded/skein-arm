@@ -4,6 +4,8 @@
   Implemented according to ``The Skein Hash Function Family'' version 1.3
 
   Changes:
+    2011-11-13: Included constants in code size.
+    2011-11-13: Implemented Skein-512.
     2011-07-09: Made code ARMv5TE compatible.
     2011-07-09: Implemented Skein-256.
 
@@ -29,7 +31,7 @@
 	.text
 
 #ifndef SKEIN_USE_ASM
-#define SKEIN_USE_ASM (256)
+#define SKEIN_USE_ASM (256+512)
 #endif
 
 #if SKEIN_USE_ASM & 1024
@@ -554,7 +556,6 @@ KEY7_ADR = S512_SOFS_KEYSCHED + 8 * ((\subkey + 7) % 9)
 
 	ldr r12, [sp, TWEAK0_ADR]
 
-	/**/
 	ldr r14, [sp, TWEAK0_ADR + 4]
 
 	adds reg4, r12
@@ -606,7 +607,6 @@ KEY7_ADR = S512_SOFS_KEYSCHED + 8 * ((\subkey + 7) % 9)
 	ldr r12, [sp, KEY4_ADR]
 
 	ldrd reg4, reg5, [sp, TMP1] /* reg5:reg4 <- v6 */
-	/**/
 
 	adc reg7, r14 /* v3 += k3 */
 	ldr r14, [sp, KEY4_ADR + 4]
@@ -624,7 +624,6 @@ KEY7_ADR = S512_SOFS_KEYSCHED + 8 * ((\subkey + 7) % 9)
 	ldr r14, [sp, TWEAK1_ADR + 4]
 
 	adds reg4, r12
-	/**/
 
 	adc reg5, r14 /* v6 += t1 */
 .endm
@@ -907,9 +906,8 @@ Skein_512_Process_Block:
 	str r7, [sp, S512_SOFS_TWEAKSCHED + 4] /* Store t0 */
 
 	ldr r0, [r14, 8*5]
-	/**/
+
 	ldr r1, [r14, 8*5 + 4] /* p5 -> r1:r0 */
-	/**/
 
 	adds r2, r0
 	ldr r6, [r14, 8*7]
@@ -930,9 +928,8 @@ Skein_512_Process_Block:
 	str r3, [sp, S512_SOFS_TMP0 + 4] /* v5 -> TMP0 */
 
 	str r4, [sp, S512_SOFS_TMP1]
-	/**/
+
 	str r5, [sp, S512_SOFS_TMP1 + 4] /* v7 -> TMP1 */
-	/**/
 
 	ldm r14, {r0-r9} /* Load p0-p4 */
 	/* Current r0-r11 state: p0, p1, p2, p3, p4, k6 */
