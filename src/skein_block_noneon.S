@@ -20,7 +20,11 @@
   for its correctness.
 */
 
-#ifdef __thumb__
+#ifdef __ARM_ARCH_7M__
+#define SKEIN_THUMB
+#endif
+
+#ifdef SKEIN_THUMB
 	.arch armv6t2
 	.thumb
 #else
@@ -282,6 +286,9 @@ S256_SOFS_BYTECNTADD = S256_SOFS_BLKCNT + 4
 
 	.balign 8
 	.global Skein_256_Process_Block
+#ifdef SKEIN_THUMB
+	.thumb_func
+#endif
 Skein_256_Process_Block:
 	add r0, CTX_TWEAK_OFS
 	push {r0-r11}
@@ -397,6 +404,9 @@ Skein_256_Process_Block:
 /* size_t  Skein_256_Process_Block_CodeSize(void);
 */
 	.global Skein_256_Process_Block_CodeSize
+#ifdef SKEIN_THUMB
+	.thumb_func
+#endif
 Skein_256_Process_Block_CodeSize:
 	ldr r0, .S256_CODE_SIZE
 	bx lr
@@ -405,6 +415,9 @@ Skein_256_Process_Block_CodeSize:
 	.word Skein_256_Process_Block_CodeSize - .S256C_C240
 
 	.global Skein_256_Unroll_Cnt
+#ifdef SKEIN_THUMB
+	.thumb_func
+#endif
 Skein_256_Unroll_Cnt:
 	mov r0, 0
 	bx lr
@@ -676,6 +689,9 @@ S512_SOFS_BYTECNTADD = S512_SOFS_BLKCNT + 4
 
 	.balign 4
 	.global Skein_512_Process_Block
+#ifdef SKEIN_THUMB
+	.thumb_func
+#endif
 Skein_512_Process_Block:
 	add r12, r0, CTX_TWEAK_OFS + 16
 	add r0, CTX_TWEAK_OFS + 16
@@ -1071,6 +1087,9 @@ Skein_512_Process_Block:
 /* size_t  Skein_512_Process_Block_CodeSize(void);
 */
 	.global Skein_512_Process_Block_CodeSize
+#ifdef SKEIN_THUMB
+	.thumb_func
+#endif
 Skein_512_Process_Block_CodeSize:
 	ldr r0, .S512_CODE_SIZE
 	bx lr
@@ -1079,6 +1098,9 @@ Skein_512_Process_Block_CodeSize:
 	.word Skein_512_Process_Block_CodeSize - .S512C_C240
 
 	.global Skein_512_Unroll_Cnt
+#ifdef SKEIN_THUMB
+	.thumb_func
+#endif
 Skein_512_Unroll_Cnt:
 	mov r0, 0
 	bx lr

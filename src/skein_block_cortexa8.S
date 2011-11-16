@@ -22,7 +22,7 @@
 
 
 	.arch armv7a
-#ifdef __thumb__
+#ifdef SKEIN_THUMB
 	.thumb
 #endif
 	.fpu neon
@@ -254,6 +254,9 @@ CTX_TWEAK_OFS = 8
 
 	.balign 4
 	.global Skein_256_Process_Block
+#ifdef SKEIN_THUMB
+	.thumb_func
+#endif
 Skein_256_Process_Block:
 	add r0, CTX_TWEAK_OFS
 	vldm r0, {d0-d5} /* t0,t1 -> d0,d1; k0-k3 -> d2-d5 */
@@ -380,6 +383,9 @@ Skein_256_Process_Block:
 /* size_t  Skein_256_Process_Block_CodeSize(void);
 */
 	.global Skein_256_Process_Block_CodeSize
+#ifdef SKEIN_THUMB
+	.thumb_func
+#endif
 Skein_256_Process_Block_CodeSize:
 	ldr r0, .S256_CODE_SIZE
 	bx lr
@@ -388,6 +394,9 @@ Skein_256_Process_Block_CodeSize:
 	.word Skein_256_Process_Block_CodeSize - .S256C_rol16tbl
 
 	.global Skein_256_Unroll_Cnt
+#ifdef SKEIN_THUMB
+	.thumb_func
+#endif
 Skein_256_Unroll_Cnt:
 	mov r0, 0
 	bx lr
@@ -524,6 +533,9 @@ Skein_256_Unroll_Cnt:
 
 	.balign 4
 	.global Skein_512_Process_Block
+#ifdef SKEIN_THUMB
+	.thumb_func
+#endif
 Skein_512_Process_Block:
 	add r0, CTX_TWEAK_OFS
 	vldm r0, {d0-d9} /* t0,t1 -> d0,d1; k0-k7 -> d2-d9 */
@@ -531,7 +543,7 @@ Skein_512_Process_Block:
 	push {r4-r7}
 	vpush {d8-d15}
 	mov r12, sp
-#ifdef __thumb__
+#ifdef SKEIN_THUMB
 	bic r4, r12, 15
 	mov sp, r4
 #else
@@ -620,6 +632,9 @@ Skein_512_Process_Block:
 /* size_t  Skein_512_Process_Block_CodeSize(void);
 */
 	.global Skein_512_Process_Block_CodeSize
+#ifdef SKEIN_THUMB
+	.thumb_func
+#endif
 Skein_512_Process_Block_CodeSize:
 	ldr r0, .S512_CODE_SIZE
 	bx lr
@@ -628,6 +643,9 @@ Skein_512_Process_Block_CodeSize:
 	.word Skein_512_Process_Block_CodeSize - .S512C_rol8tbl
 
 	.global Skein_512_Unroll_Cnt
+#ifdef SKEIN_THUMB
+	.thumb_func
+#endif
 Skein_512_Unroll_Cnt:
 	mov r0, 0
 	bx lr
@@ -796,6 +814,9 @@ S1024_STACK_N = S1024_SOFS_BYTECNTADD
 
 	.balign 4
 	.global Skein1024_Process_Block
+#ifdef SKEIN_THUMB
+	.thumb_func
+#endif
 Skein1024_Process_Block:
 	add r0, CTX_TWEAK_OFS
 	vldm r0, {d0-d9} /* t0,t1 -> d0,d1; k0-k7 -> d2-d9 */
@@ -803,7 +824,7 @@ Skein1024_Process_Block:
 	push {r4-r7}
 	vpush {d8-d15}
 	mov r12, sp
-#ifdef __thumb__
+#ifdef SKEIN_THUMB
 	bic r4, r12, 15
 	mov sp, r4
 #else
@@ -936,6 +957,9 @@ Skein1024_Process_Block:
 /* size_t  Skein1024_Process_Block_CodeSize(void);
 */
 	.global Skein1024_Process_Block_CodeSize
+#ifdef SKEIN_THUMB
+	.thumb_func
+#endif
 Skein1024_Process_Block_CodeSize:
 	ldr r0, .S1024_CODE_SIZE
 	bx lr
@@ -944,6 +968,9 @@ Skein1024_Process_Block_CodeSize:
 	.word Skein1024_Process_Block_CodeSize - .S1024C_C240
 
 	.global Skein1024_Unroll_Cnt
+#ifdef SKEIN_THUMB
+	.thumb_func
+#endif
 Skein1024_Unroll_Cnt:
 	mov r0, 0
 	bx lr
